@@ -1,4 +1,4 @@
-// app/HOME/PROFIL/ProfilePage.tsx — Firebase + avatar persistant
+// app/HOME/PROFIL/ProfilePage.tsx — Firebase + champs en lecture seule
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -17,21 +17,20 @@ import BottomNavigation from '../../../components/BottomNavigation';
 import { StyleProfilePage as styles } from '../../../components/StyleProfilePage';
 
 import { router } from 'expo-router';
-import { auth, db, storage } from '../../../services/firebaseConfig'; // ⚠️ assure-toi que storage est exporté
-import { onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { auth, db, storage } from '../../../services/firebaseConfig';
+import { onAuthStateChanged, signOut, User, deleteUser } from 'firebase/auth';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL, listAll, deleteObject } from 'firebase/storage';
+
 
 type FormData = { username: string; email: string; gender: string; };
 
 export default function ProfilePage() {
-  const [avatarUri, setAvatarUri] = useState<string | null>(null); // URL distante persistée
-  const [isEditing, setIsEditing] = useState(false);
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({ username: '', email: '', gender: '' });
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [noNotifications, setNoNotifications] = useState(false);
   const [loadingUser, setLoadingUser] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // -------- Permissions ImagePicker
@@ -65,58 +64,56 @@ export default function ProfilePage() {
       return null;
     }
   };
-  
 
-  // suppose que uploadAvatar(uri, uid) => Promise<string | null>
-const openImagePicker = async (source: 'camera' | 'library'): Promise<void> => {
-  const hasPermission = await requestPermissions();
-  const uid = currentUser?.uid ?? auth.currentUser?.uid;
+  const openImagePicker = async (source: 'camera' | 'library'): Promise<void> => {
+    const hasPermission = await requestPermissions();
+    const uid = currentUser?.uid ?? auth.currentUser?.uid;
 
-  if (!hasPermission) return;
-  if (!uid) {
-    Alert.alert('Erreur', 'Utilisateur non connecté.');
-    return;
-  }
-
-  try {
-    const pickerFn =
-      source === 'camera'
-        ? ImagePicker.launchCameraAsync
-        : ImagePicker.launchImageLibraryAsync;
-
-    const result = await pickerFn({
-      mediaTypes: [ImagePicker.MediaType.image], // ✅ nouveau
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-
-    if (result.canceled) return;
-
-    const asset = result.assets?.[0];
-    if (!asset?.uri) {
-      Alert.alert('Erreur', "Aucune image n'a été sélectionnée.");
+    if (!hasPermission) return;
+    if (!uid) {
+      Alert.alert('Erreur', 'Utilisateur non connecté.');
       return;
     }
 
-    // Affiche tout de suite la version locale (feedback rapide)
-    setAvatarUri(asset.uri);
+    try {
+      const options = {
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1] as [number, number],
+        quality: 0.8,
+      };
 
-    // Upload vers Storage + maj Firestore → renvoie l’URL publique
-    const uploadedUrl = await uploadAvatar(asset.uri, uid); // -> Promise<string | null>
-    if (uploadedUrl) {
-      setAvatarUri(uploadedUrl);
-    } else {
-      Alert.alert('Erreur', "L'envoi de l'image a échoué.");
+      const result = source === 'camera' 
+        ? await ImagePicker.launchCameraAsync(options)
+        : await ImagePicker.launchImageLibraryAsync(options);
+        
+      if (result.canceled) return;
+      
+      const asset = result.assets?.[0];
+      if (!asset?.uri) {
+        Alert.alert("Erreur", "Aucune image sélectionnée");
+        return;
+      }
+
+      // Affiche tout de suite la version locale (feedback rapide)
+      setAvatarUri(asset.uri);
+
+      // Upload vers Storage + maj Firestore → renvoie l'URL publique
+      const uploadedUrl = await uploadAvatar(asset.uri, uid);
+      if (uploadedUrl) {
+        setAvatarUri(uploadedUrl);
+        Alert.alert('Succès', 'Photo de profil mise à jour !');
+      } else {
+        Alert.alert('Erreur', "L'envoi de l'image a échoué.");
+      }
+    } catch (e) {
+      console.log('openImagePicker error:', e);
+      Alert.alert('Erreur', "Impossible de mettre à jour la photo de profil.");
     }
-  } catch (e) {
-    console.log('openImagePicker error:', e);
-    Alert.alert('Erreur', "Impossible de mettre à jour la photo de profil.");
-  }
-};
+  };
 
   const showImagePickerOptions = () => {
-    Alert.alert('Choisir une image', "D'où voulez-vous importer votre image ?", [
+    Alert.alert('Changer la photo', "D'où voulez-vous importer votre image ?", [
       { text: 'Appareil photo', onPress: () => openImagePicker('camera') },
       { text: 'Galerie', onPress: () => openImagePicker('library') },
       { text: 'Annuler', style: 'cancel' },
@@ -146,11 +143,12 @@ const openImagePicker = async (source: 'camera' | 'library'): Promise<void> => {
 
         if (snap.exists()) {
           const data = snap.data() as Partial<FormData> & { avatarUrl?: string };
-          setFormData({
+          const loadedData = {
             username: data.username ?? base.username ?? '',
             email: data.email ?? base.email ?? '',
             gender: data.gender ?? base.gender ?? '',
-          });
+          };
+          setFormData(loadedData);
           setAvatarUri(data.avatarUrl ?? null);
         } else {
           await setDoc(
@@ -171,27 +169,6 @@ const openImagePicker = async (source: 'camera' | 'library'): Promise<void> => {
 
     return unsub;
   }, []);
-
-  // -------- Sauvegarde Firestore (texte)
-  const handleSaveProfile = async () => {
-    if (!currentUser) return;
-    setSaving(true);
-    try {
-      await updateDoc(doc(db, 'users', currentUser.uid), {
-        username: formData.username.trim(),
-        email: formData.email.trim(),
-        gender: formData.gender.trim(),
-        updatedAt: new Date(),
-      });
-      setIsEditing(false);
-      Alert.alert('Succès', 'Profil sauvegardé !');
-    } catch (e) {
-      console.log('Erreur save profil:', e);
-      Alert.alert('Erreur', 'La sauvegarde a échoué.');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   // -------- Déconnexion (avec confirmation)
   const handleLogout = () => {
@@ -215,7 +192,6 @@ const openImagePicker = async (source: 'camera' | 'library'): Promise<void> => {
       ]
     );
   };
-  
 
   const handleNotificationChange = (type: 'enabled' | 'none') => {
     if (type === 'enabled') {
@@ -230,13 +206,119 @@ const openImagePicker = async (source: 'camera' | 'library'): Promise<void> => {
   if (loadingUser) {
     return (
       <LinearGradient colors={['#FFF3E5', '#FFAD4D']} locations={[0.35, 1]} style={styles.screen}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator />
-          <Text style={{ marginTop: 8 }}>Chargement…</Text>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FFAD4D" />
+          <Text style={styles.loadingText}>Chargement de votre profil...</Text>
         </View>
       </LinearGradient>
     );
   }
+
+  // Supprime tout le dossier Storage de l'utilisateur (avatar, etc.)
+const deleteUserStorage = async (uid: string) => {
+  try {
+    const folderRef = ref(storage, `users/${uid}`);
+    const listing = await listAll(folderRef);
+    await Promise.all([
+      ...listing.items.map((item) => deleteObject(item)),
+      ...listing.prefixes.map(async (sub) => {
+        const subList = await listAll(sub);
+        await Promise.all(subList.items.map((i) => deleteObject(i)));
+      }),
+    ]);
+  } catch (e) {
+    // Pas bloquant si rien à supprimer
+    console.log("deleteUserStorage:", e);
+  }
+};
+
+// Supprime le doc Firestore + Storage + compte Auth
+const reallyDeleteAccount = async () => {
+  const user = auth.currentUser;
+  if (!user) {
+    Alert.alert("Erreur", "Aucun utilisateur connecté.");
+    return;
+  }
+  const uid = user.uid;
+
+  try {
+    // 1) Récupérer d’éventuels chemins de fichiers (ex: avatarPath) puis supprimer Storage
+    const userRef = doc(db, "users", uid);
+    const snap = await getDoc(userRef);
+    if (snap.exists()) {
+      const data = snap.data() as { avatarPath?: string };
+      // Si vous gardez avatarPath, on le supprime explicitement
+      if (data?.avatarPath) {
+        try {
+          await deleteObject(ref(storage, data.avatarPath));
+        } catch (e) {
+          console.log("deleteObject avatarPath:", e);
+        }
+      }
+    }
+    // Supprimer tout le dossier /users/{uid}
+    await deleteUserStorage(uid);
+
+    // 2) Supprimer le doc Firestore
+    await deleteDoc(doc(db, "users", uid));
+
+    // 3) Supprimer le compte Auth (peut exiger une reconnexion récente)
+    await deleteUser(user);
+
+    Alert.alert("Compte supprimé", "Votre compte a bien été supprimé.");
+    router.replace("/login");
+  } catch (e: any) {
+    console.log("reallyDeleteAccount:", e);
+    if (e?.code === "auth/requires-recent-login") {
+      Alert.alert(
+        "Sécurité Firebase",
+        "Pour des raisons de sécurité, veuillez vous reconnecter puis relancer la suppression.",
+        [
+          {
+            text: "OK",
+            onPress: async () => {
+              await signOut(auth);
+              router.replace("/login?reauth=delete");
+            },
+          },
+        ]
+      );
+    } else {
+      Alert.alert("Erreur", "Impossible de supprimer votre compte pour le moment.");
+    }
+  }
+};
+
+// Double confirmation (2 alertes)
+const confirmDeleteAccount = () => {
+  Alert.alert(
+    "Supprimer mon compte",
+    "Cette action est irréversible. Voulez‑vous continuer ?",
+    [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: "Oui, continuer",
+        style: "destructive",
+        onPress: () => {
+          Alert.alert(
+            "Dernière vérification",
+            "Êtes‑vous sûr(e) de vouloir supprimer votre compte et toutes vos données ?",
+            [
+              { text: "Annuler", style: "cancel" },
+              {
+                text: "Oui, supprimer définitivement",
+                style: "destructive",
+                onPress: reallyDeleteAccount,
+              },
+            ]
+          );
+        },
+      },
+    ]
+  );
+};
+
+
 
   return (
     <LinearGradient colors={['#FFF3E5', '#FFAD4D']} locations={[0.35, 1]} style={styles.screen}>
@@ -245,76 +327,90 @@ const openImagePicker = async (source: 'camera' | 'library'): Promise<void> => {
         <View style={styles.header}>
           <Text style={styles.title}>Mon Profil</Text>
           <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => setIsEditing((v) => !v)}
-            disabled={saving}
+            style={styles.photoButton}
+            onPress={showImagePickerOptions}
           >
-            <Text style={styles.editButtonText}>{isEditing ? 'Annuler' : 'Modifier'}</Text>
+            <Ionicons name="camera" size={20} color="#000" style={styles.photoButtonIcon} />
+            <Text style={styles.photoButtonText}>Photo</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Avatar */}
-        <View style={styles.avatarRow}>
-          <Image
-            source={
-              avatarUri
-                ? { uri: avatarUri }
-                : require('../../../assets/images/utilisateur.png')
-            }
-            style={styles.avatar}
-          />
-          <TouchableOpacity style={styles.changeBtn} onPress={showImagePickerOptions}>
-            <Text style={styles.changeBtnText}>Changer</Text>
-          </TouchableOpacity>
+        {/* Avatar Section */}
+        <View style={styles.avatarSection}>
+          <View style={styles.avatarContainer}>
+            <Image
+              source={
+                avatarUri
+                  ? { uri: avatarUri }
+                  : require('../../../assets/images/utilisateur.png')
+              }
+              style={styles.avatar}
+            />
+            <TouchableOpacity 
+              style={styles.avatarOverlay} 
+              onPress={showImagePickerOptions}
+            >
+              <Ionicons name="camera" size={24} color="#FFF" />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.avatarHint}>Touchez pour changer</Text>
         </View>
 
         {/* Formulaire */}
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Nom d’utilisateur</Text>
+            <Text style={styles.label}>Nom d'utilisateur</Text>
             <TextInput
-              style={[styles.input, !isEditing && styles.disabledInput]}
+              style={[styles.input, styles.readOnlyInput]}
               value={formData.username}
-              onChangeText={(text) => setFormData((p) => ({ ...p, username: text }))}
-              editable={isEditing}
+              editable={false}
+              placeholder="Votre nom d'utilisateur"
+              placeholderTextColor="#999"
             />
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Email</Text>
             <TextInput
-              style={[styles.input, !isEditing && styles.disabledInput]}
+              style={[styles.input, styles.readOnlyInput]}
               value={formData.email}
-              onChangeText={(text) => setFormData((p) => ({ ...p, email: text }))}
-              editable={isEditing}
+              editable={false}
               keyboardType="email-address"
               autoCapitalize="none"
+              placeholder="votre.email@example.com"
+              placeholderTextColor="#999"
             />
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Genre</Text>
             <TextInput
-              style={[styles.input, !isEditing && styles.disabledInput]}
+              style={[styles.input, styles.readOnlyInput]}
               value={formData.gender}
-              onChangeText={(text) => setFormData((p) => ({ ...p, gender: text }))}
-              editable={isEditing}
-              placeholder="Femme / Homme / Autre…"
+              editable={false}
+              placeholder="Femme / Homme / Autre..."
+              placeholderTextColor="#999"
             />
           </View>
 
-          {/* Notifications (placeholder UI local) */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Notifications</Text>
+          {/* Notifications */}
+          <View style={styles.notificationSection}>
+            <Text style={styles.sectionTitle}>Préférences de notification</Text>
 
-            <TouchableOpacity style={styles.checkboxRow} onPress={() => handleNotificationChange('enabled')}>
+            <TouchableOpacity 
+              style={styles.checkboxRow} 
+              onPress={() => handleNotificationChange('enabled')}
+            >
               <View style={[styles.checkbox, notificationsEnabled && styles.checkboxSelected]}>
                 {notificationsEnabled && <Ionicons name="checkmark" size={16} color="#FFF" />}
               </View>
-              <Text style={styles.checkboxText}>Notifications activées</Text>
+              <Text style={styles.checkboxText}>Recevoir les notifications</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.checkboxRow} onPress={() => handleNotificationChange('none')}>
+            <TouchableOpacity 
+              style={styles.checkboxRow} 
+              onPress={() => handleNotificationChange('none')}
+            >
               <View style={[styles.checkbox, noNotifications && styles.checkboxSelected]}>
                 {noNotifications && <Ionicons name="checkmark" size={16} color="#FFF" />}
               </View>
@@ -322,34 +418,22 @@ const openImagePicker = async (source: 'camera' | 'library'): Promise<void> => {
             </TouchableOpacity>
           </View>
 
-          {/* Sauvegarder */}
-          {isEditing && (
-            <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile} disabled={saving}>
-              <Text style={styles.saveButtonText}>{saving ? 'Sauvegarde…' : 'Sauvegarder'}</Text>
+          {/* Actions */}
+          <View style={styles.actionsSection}>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={20} color="#000" style={styles.buttonIcon} />
+              <Text style={styles.logoutButtonText}>Se déconnecter</Text>
             </TouchableOpacity>
-          )}
 
-          {/* Déconnexion */}
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Text style={styles.logoutButtonText}>Se déconnecter</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+  style={styles.deleteAccountButton}
+  onPress={confirmDeleteAccount}
+>
+  <Ionicons name="trash-outline" size={20} color="#FFF" style={styles.buttonIcon} />
+  <Text style={styles.deleteAccountButtonText}>Supprimer mon compte</Text>
+</TouchableOpacity>
 
-          {/* Supprimer mon compte (placeholder) */}
-          <TouchableOpacity
-            style={styles.deleteAccountButton}
-            onPress={() =>
-              Alert.alert(
-                'Supprimer mon compte',
-                'Cette action est irréversible. Continuer ?',
-                [
-                  { text: 'Annuler', style: 'cancel' },
-                  { text: 'Supprimer', style: 'destructive', onPress: () => Alert.alert('Info', 'À implémenter.') },
-                ]
-              )
-            }
-          >
-            <Text style={styles.deleteAccountButtonText}>Supprimer mon compte</Text>
-          </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
 
