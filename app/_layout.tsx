@@ -1,29 +1,52 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import * as SplashScreen from 'expo-splash-screen';
+import { useFonts } from 'expo-font';
+import { useCallback } from 'react';
+import { View } from 'react-native';
 
-import { useColorScheme } from '@/hooks/useColorScheme';
+// Empêche l'écran splash de se fermer automatiquement
+SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+export default function Layout() {
+  const [fontsLoaded] = useFonts({
+    Montserrat: require('../assets/fonts/Montserrat-Regular.ttf'),
+    'Montserrat-Bold': require('../assets/fonts/Montserrat-Bold.ttf'),
   });
 
-  if (!loaded) {
-    // Async font loading only occurs in development.
-    return null;
-  }
+  const onLayoutRootView = useCallback(async () => {
+    if (fontsLoaded) {
+      await SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) return null;
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <View onLayout={onLayoutRootView} style={{ flex: 1 }}>
       <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="signup" options={{ headerShown: false }} />
+        <Stack.Screen name="presentation" options={{ headerShown: false }} />
+        <Stack.Screen name="UserInfos" options={{ headerShown: false }} />
+        <Stack.Screen name="HOME/ACCEUIL/acceuil" options={{ headerShown: false }} />
+        <Stack.Screen name="HOME/FRIGO/frigo" options={{ headerShown: false }} />
+        <Stack.Screen name="HOME/LISTE/liste" options={{ headerShown: false }} />
+        <Stack.Screen name="HOME/LISTE/ajouterfoyer" options={{ headerShown: false }} />
+        <Stack.Screen name="HOME/LISTE/courselist" options={{ headerShown: false }} />
+        <Stack.Screen name="HOME/PROFIL/ProfilePage" options={{ headerShown: false }} />
+
+
+
+
+
+
+        {/* Ajoute d'autres pages ici au besoin */}
       </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    </View>
   );
 }
+
+
+
+

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1040301037015",
+    "project_id": "akly-dd7c8",
+    "storage_bucket": "akly-dd7c8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1040301037015:android:a4773c50d6a44bc88ae792",
+        "android_client_info": {
+          "package_name": "com.boutros961.akly"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyByW22HWNt3dIkmOFzUzOUbMGripdsCyFA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
