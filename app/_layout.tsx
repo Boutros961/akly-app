@@ -1,10 +1,10 @@
+// app/_layout.tsx
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { useCallback } from 'react';
 import { View } from 'react-native';
 
-// Empêche l'écran splash de se fermer automatiquement
 SplashScreen.preventAutoHideAsync();
 
 export default function Layout() {
@@ -23,30 +23,14 @@ export default function Layout() {
 
   return (
     <View onLayout={onLayoutRootView} style={{ flex: 1 }}>
-      <Stack>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen name="signup" options={{ headerShown: false }} />
-        <Stack.Screen name="presentation" options={{ headerShown: false }} />
-        <Stack.Screen name="UserInfos" options={{ headerShown: false }} />
-        <Stack.Screen name="HOME/ACCEUIL/acceuil" options={{ headerShown: false }} />
-        <Stack.Screen name="HOME/FRIGO/frigo" options={{ headerShown: false }} />
-        <Stack.Screen name="HOME/LISTE/liste" options={{ headerShown: false }} />
-        <Stack.Screen name="HOME/LISTE/ajouterfoyer" options={{ headerShown: false }} />
-        <Stack.Screen name="HOME/LISTE/courselist" options={{ headerShown: false }} />
-        <Stack.Screen name="HOME/PROFIL/ProfilePage" options={{ headerShown: false }} />
-
-
-
-
-
-
-        {/* Ajoute d'autres pages ici au besoin */}
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="login" />
+        <Stack.Screen name="signup" />
+        <Stack.Screen name="presentation" />
+        <Stack.Screen name="UserInfos" />
+        {/* ⚠️ Ne mets PAS les écrans HOME ici. Les Tabs vont s’en charger. */}
       </Stack>
     </View>
   );
 }
-
-
-
-

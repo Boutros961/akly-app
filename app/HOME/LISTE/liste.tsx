@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Text, View, TouchableOpacity, FlatList, ActivityIndicator, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import BottomNavigation from '../../../components/BottomNavigation';
+// import BottomNavigation from '../../../components/BottomNavigation';
 import { screenStyles as s, colors } from '../../../components/screenStyles';
 import { auth, db } from '../../../services/firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -194,7 +194,7 @@ export default function Liste() {
 
       {/* Navbar */}
       <View style={s.bottomNavWrapper}>
-        <BottomNavigation />
+        {/* <BottomNavigation /> */}
       </View>
     </LinearGradient>
   );

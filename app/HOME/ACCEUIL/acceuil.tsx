@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import BottomNavigation from '../../../components/BottomNavigation';
+// import BottomNavigation from '../../../components/BottomNavigation';
 import { LinearGradient } from 'expo-linear-gradient';
 import { screenStyles as s, colors } from '../../../components/screenStyles';
 
@@ -15,7 +15,7 @@ export default function Liste() {
       <View style={s.content}>
         <Text style={s.title}>Bienvenue dans la page acceuil</Text>
       </View>
-      <BottomNavigation />
+      {/* <BottomNavigation /> */}
     </LinearGradient>
   );
 }

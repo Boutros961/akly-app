@@ -54,7 +54,7 @@ export const StyleProfilePage = StyleSheet.create({
   contentContainer: { 
     paddingHorizontal: 20, 
     paddingTop: 0, 
-    paddingBottom: 50 
+    paddingBottom: 100 
   },
 
   loadingContainer: {
@@ -68,7 +68,7 @@ export const StyleProfilePage = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#666',
-    fontFamily: 'Beiruti',
+    fontFamily: 'Montserrat',
   },
 
   // ===== HEADER =====
@@ -355,7 +355,75 @@ export const StyleProfilePage = StyleSheet.create({
     backgroundColor: '#f5f5f5', // Couleur de fond grisée
     color: '#666',              // Texte plus sombre
     opacity: 0.8,               // Légère transparence
-  }
+  },
+
+  // Styles pour le modal d'avatar
+modalOverlay: {
+  flex: 1,
+  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+modalContent: {
+  backgroundColor: '#FFF',
+  borderRadius: 20,
+  padding: 20,
+  width: '85%',
+  maxWidth: 350,
+},
+modalTitle: {
+  fontSize: 18,
+  fontWeight: 'bold',
+  textAlign: 'center',
+  marginBottom: 20,
+  color: '#333',
+},
+avatarGrid: {
+  flexDirection: 'row',
+  flexWrap: 'wrap',
+  justifyContent: 'space-around',
+  marginBottom: 20,
+},
+avatarOption: {
+  width: 60,
+  height: 60,
+  borderRadius: 30,
+  margin: 8,
+  position: 'relative',
+  borderWidth: 2,
+  borderColor: 'transparent',
+},
+avatarOptionSelected: {
+  borderColor: '#FFAD4D',
+  borderWidth: 3,
+},
+avatarOptionImage: {
+  width: '100%',
+  height: '100%',
+  borderRadius: 30,
+},
+avatarSelectedIndicator: {
+  position: 'absolute',
+  top: -5,
+  right: -5,
+  backgroundColor: '#FFAD4D',
+  borderRadius: 12,
+  width: 24,
+  height: 24,
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+modalCloseButton: {
+  backgroundColor: '#FFAD4D',
+  borderRadius: 10,
+  padding: 12,
+  alignItems: 'center',
+},
+modalCloseButtonText: {
+  color: '#FFF',
+  fontWeight: 'bold',
+  fontSize: 16,
+},
 });
 
 export const colors = {

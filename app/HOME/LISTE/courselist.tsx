@@ -13,7 +13,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import BottomNavigation from '../../../components/BottomNavigation';
+// import BottomNavigation from '../../../components/BottomNavigation';
 import { screenStyles as s, colors } from '../../../components/screenStyles';
 import { useLocalSearchParams, router } from 'expo-router';
 
@@ -390,7 +390,7 @@ const CategoryCard = ({ title }: { title: string }) => {
 
       {/* Bottom nav */}
       <View style={s.bottomNavWrapper}>
-        <BottomNavigation />
+        {/* <BottomNavigation /> */}
       </View>
 
       {/* Modal ajout élément */}

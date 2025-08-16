@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { screenStyles as s, colors } from '../../../components/screenStyles';
-import BottomNavigation from '../../../components/BottomNavigation';
+// import BottomNavigation from '../../../components/BottomNavigation';
 import { auth, db } from '../../../services/firebaseConfig';
 import { 
   collection, 
@@ -302,7 +302,7 @@ export default function AjouterFoyer() {
 
       {/* Bottom bar */}
       <View style={s.bottomNavWrapper}>
-        <BottomNavigation />
+        {/* <BottomNavigation /> */}
       </View>
     </LinearGradient>
   );
